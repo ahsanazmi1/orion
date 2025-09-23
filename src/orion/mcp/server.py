@@ -2,7 +2,7 @@
 MCP (Model Context Protocol) server for Orion service.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -13,12 +13,14 @@ mcp_router = APIRouter(prefix="/mcp", tags=["mcp"])
 
 class MCPRequest(BaseModel):
     """MCP request model."""
+
     verb: str
-    args: Dict[str, Any] = {}
+    args: dict[str, Any] = {}
 
 
 class MCPResponse(BaseModel):
     """MCP response model."""
+
     ok: bool
     data: Any
     agent: str
@@ -28,19 +30,19 @@ class MCPResponse(BaseModel):
 async def mcp_invoke(request: MCPRequest) -> MCPResponse:
     """
     MCP protocol endpoint for Orion service operations.
-    
+
     Args:
         request: MCP request containing verb and arguments
-        
+
     Returns:
         MCP response with operation result
-        
+
     Raises:
         HTTPException: If verb is not supported
     """
     verb = request.verb
     args = request.args
-    
+
     if verb == "getStatus":
         return await get_status()
     elif verb == "getPayoutOptions":
@@ -48,31 +50,31 @@ async def mcp_invoke(request: MCPRequest) -> MCPResponse:
     else:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported verb: {verb}. Supported verbs: getStatus, getPayoutOptions"
+            detail=f"Unsupported verb: {verb}. Supported verbs: getStatus, getPayoutOptions",
         )
 
 
 async def get_status() -> MCPResponse:
     """
     Get the current status of the Orion agent.
-    
+
     Returns:
         MCP response with agent status
     """
     return MCPResponse(
         ok=True,
         data={"status": "active", "service": "payout-management"},
-        agent="orion"
+        agent="orion",
     )
 
 
-async def get_payout_options(args: Dict[str, Any]) -> MCPResponse:
+async def get_payout_options(args: dict[str, Any]) -> MCPResponse:
     """
     Get available payout options and rails.
-    
+
     Args:
         args: Optional arguments (currently unused)
-        
+
     Returns:
         MCP response with payout options
     """
@@ -85,7 +87,7 @@ async def get_payout_options(args: Dict[str, Any]) -> MCPResponse:
             "fees": {"fixed": 0.25, "percentage": 0.0},
             "limits": {"min": 1.00, "max": 25000.00},
             "supported_countries": ["US"],
-            "enabled": True
+            "enabled": True,
         },
         {
             "rail": "Wire",
@@ -95,7 +97,7 @@ async def get_payout_options(args: Dict[str, Any]) -> MCPResponse:
             "fees": {"fixed": 15.00, "percentage": 0.0},
             "limits": {"min": 100.00, "max": 100000.00},
             "supported_countries": ["US", "CA", "GB", "DE", "FR"],
-            "enabled": True
+            "enabled": True,
         },
         {
             "rail": "Card",
@@ -105,16 +107,16 @@ async def get_payout_options(args: Dict[str, Any]) -> MCPResponse:
             "fees": {"fixed": 0.50, "percentage": 0.0},
             "limits": {"min": 1.00, "max": 5000.00},
             "supported_countries": ["US", "CA"],
-            "enabled": True
-        }
+            "enabled": True,
+        },
     ]
-    
+
     return MCPResponse(
         ok=True,
         data={
             "payout_options": payout_options,
             "total_options": len(payout_options),
-            "default_rail": "ACH"
+            "default_rail": "ACH",
         },
-        agent="orion"
+        agent="orion",
     )

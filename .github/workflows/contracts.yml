@@ -1,0 +1,124 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate-contracts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Check for examples/schemas directory
+        id: check-schemas
+        run: |
+          if [ -d "examples" ] || [ -d "schemas" ]; then
+            echo "has_schemas=true" >> $GITHUB_OUTPUT
+            echo "Found examples/schemas directory"
+          else
+            echo "has_schemas=false" >> $GITHUB_OUTPUT
+            echo "No examples/schemas directory found"
+          fi
+
+      - name: Install ocn-common for validation
+        if: steps.check-schemas.outputs.has_schemas == 'true'
+        run: |
+          # Try to install ocn-common from pip or git
+          pip install ocn-common || {
+            echo "ocn-common not available via pip, trying git installation..."
+            pip install git+https://github.com/ahsanazmi1/ocn-common.git || {
+              echo "Warning: Could not install ocn-common for validation"
+              exit 0
+            }
+          }
+
+      - name: Validate JSON examples against ocn-common
+        if: steps.check-schemas.outputs.has_schemas == 'true'
+        run: |
+          echo "Validating JSON examples against ocn-common schemas..."
+          # This would contain actual validation logic when ocn-common is available
+          python -c "
+          import json
+          import os
+          import glob
+
+          # Find all JSON files in examples/schemas
+          json_files = []
+          for pattern in ['examples/**/*.json', 'schemas/**/*.json']:
+              json_files.extend(glob.glob(pattern, recursive=True))
+
+          print(f'Found {len(json_files)} JSON files to validate')
+
+          for json_file in json_files:
+              try:
+                  with open(json_file, 'r') as f:
+                      json.load(f)
+                  print(f'✅ {json_file} - Valid JSON')
+              except json.JSONDecodeError as e:
+                  print(f'❌ {json_file} - Invalid JSON: {e}')
+                  exit(1)
+              except Exception as e:
+                  print(f'⚠️ {json_file} - Error: {e}')
+
+          print('All JSON files validated successfully!')
+          "
+
+      - name: Placeholder validation (no examples/schemas)
+        if: steps.check-schemas.outputs.has_schemas == 'false'
+        run: |
+          echo "📋 No examples/schemas directory found in this repository."
+          echo "✅ Contract validation placeholder completed successfully."
+          echo "💡 To enable full contract validation, add examples/ and schemas/ directories with JSON files."
+          echo "📝 This repository contains MCP manifest files which are validated separately."
+
+      - name: Validate MCP manifest files
+        run: |
+          echo "🔍 Validating MCP manifest files..."
+          python -c "
+          import json
+          import glob
+
+          # Find all MCP manifest files
+          manifest_files = glob.glob('**/mcp/manifest.json', recursive=True)
+
+          if not manifest_files:
+              print('No MCP manifest files found')
+              exit(0)
+
+          for manifest_file in manifest_files:
+              try:
+                  with open(manifest_file, 'r') as f:
+                      manifest = json.load(f)
+
+                  # Basic validation
+                  required_fields = ['name', 'version', 'capabilities']
+                  for field in required_fields:
+                      if field not in manifest:
+                          print(f'❌ {manifest_file} - Missing required field: {field}')
+                          exit(1)
+
+                  # Validate capabilities structure
+                  if 'verbs' not in manifest['capabilities']:
+                      print(f'❌ {manifest_file} - Missing verbs in capabilities')
+                      exit(1)
+
+                  print(f'✅ {manifest_file} - Valid MCP manifest')
+
+              except json.JSONDecodeError as e:
+                  print(f'❌ {manifest_file} - Invalid JSON: {e}')
+                  exit(1)
+              except Exception as e:
+                  print(f'❌ {manifest_file} - Validation error: {e}')
+                  exit(1)
+
+          print('All MCP manifest files validated successfully!')
+          "

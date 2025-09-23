@@ -1,6 +1,8 @@
 # Orion Service
 
 [![CI](https://github.com/ahsanazmi1/orion/workflows/CI/badge.svg)](https://github.com/ahsanazmi1/orion/actions/workflows/ci.yml)
+[![Contracts](https://github.com/ahsanazmi1/orion/workflows/Contracts/badge.svg)](https://github.com/ahsanazmi1/orion/actions/workflows/contracts.yml)
+[![Security](https://github.com/ahsanazmi1/orion/workflows/Security/badge.svg)](https://github.com/ahsanazmi1/orion/actions/workflows/security.yml)
 
 Orion is a minimal Python service for the [Open Checkout Network (OCN)](https://github.com/ahsanazmi1/ocn-common). It provides core functionality and serves as a foundation for building more complex services within the OCN ecosystem. Orion follows modern Python development practices with FastAPI, comprehensive testing, and automated CI/CD workflows.
 

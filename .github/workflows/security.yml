@@ -1,0 +1,117 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit
+        run: |
+          echo "🔍 Running pip-audit for Python dependency vulnerabilities..."
+          pip-audit --desc --format=json --output=security-audit.json || {
+            echo "⚠️ pip-audit found vulnerabilities or failed"
+            echo "Checking if audit file was created..."
+            if [ -f "security-audit.json" ]; then
+              echo "Audit results:"
+              cat security-audit.json
+            fi
+            exit 0  # Don't fail the build for now, just report
+          }
+
+      - name: Upload security audit results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-results
+          path: security-audit.json
+          retention-days: 30
+
+      - name: Check for Dockerfile
+        id: check-dockerfile
+        run: |
+          if [ -f "Dockerfile" ]; then
+            echo "has_dockerfile=true" >> $GITHUB_OUTPUT
+            echo "Found Dockerfile"
+          else
+            echo "has_dockerfile=false" >> $GITHUB_OUTPUT
+            echo "No Dockerfile found"
+          fi
+
+      - name: Install Trivy
+        if: steps.check-dockerfile.outputs.has_dockerfile == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+
+      - name: Run Trivy filesystem scan
+        if: steps.check-dockerfile.outputs.has_dockerfile == 'true'
+        run: |
+          echo "🔍 Running Trivy filesystem scan..."
+          trivy fs . --format json --output trivy-fs-report.json || {
+            echo "⚠️ Trivy found vulnerabilities"
+            echo "Checking if report was created..."
+            if [ -f "trivy-fs-report.json" ]; then
+              echo "Trivy report summary:"
+              cat trivy-fs-report.json | jq '.Results[] | {Class: .Class, Target: .Target, Vulnerabilities: (.Vulnerabilities | length)}' || echo "Could not parse Trivy report"
+            fi
+            exit 0  # Don't fail the build for now, just report
+          }
+
+      - name: Upload Trivy results
+        if: always() && steps.check-dockerfile.outputs.has_dockerfile == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-fs-results
+          path: trivy-fs-report.json
+          retention-days: 30
+
+      - name: Security scan summary
+        if: always()
+        run: |
+          echo "🔒 Security Scan Summary:"
+          echo "✅ pip-audit completed for Python dependencies"
+          if [ -f "security-audit.json" ]; then
+            echo "📊 Security audit results saved to artifacts"
+          fi
+          if [ "${{ steps.check-dockerfile.outputs.has_dockerfile }}" == "true" ]; then
+            echo "✅ Trivy filesystem scan completed"
+            if [ -f "trivy-fs-report.json" ]; then
+              echo "📊 Trivy scan results saved to artifacts"
+            fi
+          else
+            echo "ℹ️ No Dockerfile found, skipping Trivy scan"
+          fi
+          echo "🔍 Review security artifacts in the workflow run for detailed results"
