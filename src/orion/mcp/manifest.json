@@ -1,0 +1,23 @@
+{
+  "name": "orion-mcp",
+  "version": "0.1.0",
+  "description": "Orion MCP server for payout options and status management",
+  "capabilities": {
+    "verbs": [
+      "getStatus",
+      "getPayoutOptions"
+    ]
+  },
+  "endpoints": [
+    {
+      "path": "/mcp/invoke",
+      "method": "POST",
+      "description": "MCP protocol endpoint for Orion service operations"
+    }
+  ],
+  "metadata": {
+    "agent": "orion",
+    "service": "payout-management",
+    "version": "0.1.0"
+  }
+}

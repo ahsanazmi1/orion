@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from orion.mcp import mcp_router
+
 # Create FastAPI application
 app = FastAPI(
     title="Orion Service",
@@ -21,6 +23,9 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     },
 )
+
+# Include MCP router
+app.include_router(mcp_router)
 
 
 @app.get("/health")
