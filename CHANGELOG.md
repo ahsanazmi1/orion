@@ -8,11 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project structure
-- FastAPI application with health check endpoint
-- Basic test suite
-- CI/CD pipeline with GitHub Actions
-- Development dependencies and tooling
+- Phase 2 — Explainability scaffolding
+- PR template for Phase 2 development
+
+## [Unreleased] — Phase 2
+
+### Added
+- AI-powered payout decision explanations
+- LLM integration for human-readable vendor payout reasoning
+- Explainability API endpoints for payout plan decisions
+- Decision audit trail with explanations
+- Integration with Azure OpenAI for explanations
+- Enhanced MCP verbs for explainability features
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
 
 ## [0.1.0] - 2024-09-22
 
