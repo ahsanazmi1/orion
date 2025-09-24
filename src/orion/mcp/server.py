@@ -7,6 +7,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from orion.explain import explain_choice
+from orion.optimize import get_best_rail, score_rails, validate_context
+
 # Create MCP router
 mcp_router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -70,53 +73,76 @@ async def get_status() -> MCPResponse:
 
 async def get_payout_options(args: dict[str, Any]) -> MCPResponse:
     """
-    Get available payout options and rails.
+    Get optimized payout options using scoring and explanations.
 
     Args:
-        args: Optional arguments (currently unused)
+        args: Arguments containing amount, urgency, vendor_id, etc.
 
     Returns:
-        MCP response with payout options
+        MCP response with optimized payout options and explanation
     """
-    payout_options = [
-        {
-            "rail": "ACH",
-            "name": "Automated Clearing House",
-            "description": "Direct bank transfer via ACH network",
-            "processing_time": "1-3 business days",
-            "fees": {"fixed": 0.25, "percentage": 0.0},
-            "limits": {"min": 1.00, "max": 25000.00},
-            "supported_countries": ["US"],
-            "enabled": True,
-        },
-        {
-            "rail": "Wire",
-            "name": "Wire Transfer",
-            "description": "International wire transfer",
-            "processing_time": "1-2 business days",
-            "fees": {"fixed": 15.00, "percentage": 0.0},
-            "limits": {"min": 100.00, "max": 100000.00},
-            "supported_countries": ["US", "CA", "GB", "DE", "FR"],
-            "enabled": True,
-        },
-        {
-            "rail": "Card",
-            "name": "Card Payout",
-            "description": "Direct to card payout",
-            "processing_time": "Instant",
-            "fees": {"fixed": 0.50, "percentage": 0.0},
-            "limits": {"min": 1.00, "max": 5000.00},
-            "supported_countries": ["US", "CA"],
-            "enabled": True,
-        },
-    ]
+    # Extract context from args
+    context = {
+        "amount": args.get("amount", 1000.0),
+        "urgency": args.get("urgency", "normal"),
+        "vendor_id": args.get("vendor_id", "unknown"),
+        "currency": args.get("currency", "USD"),
+    }
+
+    # Validate context
+    context = validate_context(context)
+
+    # Score and rank rails
+    ranked_rails = score_rails(context)
+
+    if not ranked_rails:
+        return MCPResponse(
+            ok=False,
+            data={"error": "No suitable payment rails available for this amount"},
+            agent="orion",
+        )
+
+    # Get best rail
+    best_rail = get_best_rail(ranked_rails)
+
+    if not best_rail:
+        return MCPResponse(
+            ok=False,
+            data={"error": "No suitable payment rails available for this amount"},
+            agent="orion",
+        )
+
+    # Generate explanation
+    explanation = explain_choice(best_rail, ranked_rails, context)
+
+    # Format payout options for MCP response
+    payout_options = []
+    for rail in ranked_rails:
+        payout_options.append(
+            {
+                "rail": rail["rail_id"].upper(),
+                "name": rail["description"],
+                "description": f"{rail['description']} with {rail['processing_time_hours']}h processing",
+                "processing_time": f"{rail['processing_time_hours']} hours",
+                "fees": {"fixed": rail["cost_per_transaction"], "percentage": 0.0},
+                "limits": {"min": 1.00, "max": rail["max_amount"]},
+                "score": rail["scores"]["total"],
+                "enabled": True,
+            }
+        )
 
     return MCPResponse(
         ok=True,
         data={
             "payout_options": payout_options,
+            "best_rail": {
+                "rail": best_rail["rail_id"].upper(),
+                "score": best_rail["scores"]["total"],
+                "reason": explanation["reason"],
+            },
+            "explanation": explanation,
+            "context": context,
             "total_options": len(payout_options),
-            "default_rail": "ACH",
         },
         agent="orion",
     )

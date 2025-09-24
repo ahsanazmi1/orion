@@ -48,11 +48,14 @@ def test_mcp_get_payout_options() -> None:
     payout_data = data["data"]
     assert "payout_options" in payout_data
     assert "total_options" in payout_data
-    assert "default_rail" in payout_data
+    assert "best_rail" in payout_data
+    assert "explanation" in payout_data
 
     # Check payout options count
-    assert payout_data["total_options"] == 3
-    assert payout_data["default_rail"] == "ACH"
+    assert (
+        payout_data["total_options"] == 4
+    )  # All 4 rails should be available for $1000
+    assert payout_data["best_rail"]["rail"] in ["ACH", "WIRE", "RTP", "V_CARD"]
 
     # Check first payout option structure
     first_option = payout_data["payout_options"][0]
@@ -63,16 +66,16 @@ def test_mcp_get_payout_options() -> None:
         "processing_time",
         "fees",
         "limits",
-        "supported_countries",
+        "score",
         "enabled",
     ]
     for field in expected_fields:
         assert field in first_option
 
     # Check specific values
-    assert first_option["rail"] == "ACH"
     assert first_option["enabled"] is True
-    assert "US" in first_option["supported_countries"]
+    assert isinstance(first_option["score"], (int, float))
+    assert first_option["score"] > 0
 
 
 def test_mcp_unsupported_verb() -> None:
