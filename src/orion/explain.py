@@ -4,7 +4,7 @@ Orion explanation module.
 Provides human-readable explanations for payout optimization decisions.
 """
 
-from typing import Any
+from typing import Any, cast
 
 
 def explain_choice(
@@ -201,4 +201,5 @@ def _calculate_confidence(
         base_confidence + score_confidence + competition_confidence + context_confidence
     )
 
-    return min(1.0, max(0.0, total_confidence))
+    result = min(1.0, max(0.0, total_confidence))
+    return cast(float, result)

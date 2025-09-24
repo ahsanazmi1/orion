@@ -82,6 +82,12 @@ async def optimize_payout(
     # Get best rail
     best_rail = get_best_rail(ranked_rails)
 
+    if not best_rail:
+        return {
+            "error": "No suitable payment rails available for this amount",
+            "context": context,
+        }
+
     # Generate explanation
     explanation = explain_choice(best_rail, ranked_rails, context)
 

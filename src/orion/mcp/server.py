@@ -105,6 +105,13 @@ async def get_payout_options(args: dict[str, Any]) -> MCPResponse:
     # Get best rail
     best_rail = get_best_rail(ranked_rails)
 
+    if not best_rail:
+        return MCPResponse(
+            ok=False,
+            data={"error": "No suitable payment rails available for this amount"},
+            agent="orion",
+        )
+
     # Generate explanation
     explanation = explain_choice(best_rail, ranked_rails, context)
 

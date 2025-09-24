@@ -4,7 +4,7 @@ Orion payout optimization module.
 Provides deterministic scoring and ranking of payment rails for vendor payouts.
 """
 
-from typing import Any
+from typing import Any, cast
 
 # Rail configurations with deterministic properties
 RAIL_CONFIGS = {
@@ -61,13 +61,19 @@ def score_rails(context: dict[str, Any]) -> list[dict[str, Any]]:
 
     for rail_id, config in RAIL_CONFIGS.items():
         # Check if rail exceeds limits
-        if amount > config["max_amount"]:
+        if amount > cast(float, config["max_amount"]):
             continue
 
         # Calculate scores (higher is better)
-        cost_score = _calculate_cost_score(config["cost_per_transaction"], amount)
-        speed_score = _calculate_speed_score(config["processing_time_hours"], urgency)
-        limits_score = _calculate_limits_score(amount, config["max_amount"])
+        cost_score = _calculate_cost_score(
+            cast(float, config["cost_per_transaction"]), amount
+        )
+        speed_score = _calculate_speed_score(
+            cast(float, config["processing_time_hours"]), urgency
+        )
+        limits_score = _calculate_limits_score(
+            amount, cast(float, config["max_amount"])
+        )
 
         # Weighted total score
         total_score = (
@@ -95,7 +101,10 @@ def score_rails(context: dict[str, Any]) -> list[dict[str, Any]]:
         scored_rails.append(rail_result)
 
     # Sort by total score (descending) - deterministic ordering
-    scored_rails.sort(key=lambda x: x["scores"]["total"], reverse=True)
+    def get_total_score(rail: dict[str, Any]) -> float:
+        return cast(float, rail["scores"]["total"])
+
+    scored_rails.sort(key=get_total_score, reverse=True)
 
     return scored_rails
 
@@ -103,9 +112,10 @@ def score_rails(context: dict[str, Any]) -> list[dict[str, Any]]:
 def _calculate_cost_score(cost_per_transaction: float, amount: float) -> float:
     """Calculate cost score (lower cost = higher score)."""
     # Normalize cost as percentage of amount, then invert
-    cost_percentage = (cost_per_transaction / amount) * 100 if amount > 0 else 0
+    cost_percentage = (cost_per_transaction / amount) * 100 if amount > 0 else 0.0
     # Use exponential decay for cost score
-    return max(0.0, 100.0 * (0.5 ** (cost_percentage / 1.0)))
+    result = max(0.0, 100.0 * (0.5 ** (cost_percentage / 1.0)))
+    return cast(float, result)
 
 
 def _calculate_speed_score(processing_hours: float, urgency: str) -> float:
