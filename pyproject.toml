@@ -7,7 +7,7 @@ packages = ["src/orion"]
 
 [project]
 name = "orion"
-version = "0.1.0"
+version = "0.2.0"
 description = "Orion service for the Open Checkout Network (OCN)"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -30,6 +30,7 @@ dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "httpx>=0.25.0",
+    "ocn-common @ git+https://github.com/ahsanazmi1/ocn-common.git@v0.2.0#egg=ocn-common",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +48,9 @@ dev = [
 Homepage = "https://github.com/ahsanazmi1/orion"
 Repository = "https://github.com/ahsanazmi1/orion"
 Issues = "https://github.com/ahsanazmi1/orion/issues"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.black]
 line-length = 88
