@@ -5,6 +5,7 @@ FastAPI application for Orion service.
 from typing import Any
 
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from orion.ce import create_explanation_payload, emit_explanation_ce, get_trace_id
@@ -26,6 +27,15 @@ app = FastAPI(
         "name": "MIT",
         "url": "https://opensource.org/licenses/MIT",
     },
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify actual origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include MCP router
