@@ -214,6 +214,16 @@ This project uses:
 - **ruff** and **black** for code formatting
 - **mypy** for type checking
 
+## Phase 3 — Negotiation & Live Fee Bidding
+
+Payout-side negotiation + connectors.
+
+### Phase 3 — Negotiation & Live Fee Bidding
+- [ ] Participates in payout-side negotiation with processors
+- [ ] Connectors for ACH, RTP, v-card, wire
+- [ ] Emits payout reasoning CE (ocn.orion.explanation.v1)
+- [ ] Tests for payout optimization + negotiation flows
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
