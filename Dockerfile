@@ -55,6 +55,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY src/ ./src/
+COPY models/ ./models/
 
 # Set ownership
 RUN chown -R orion:orion /app

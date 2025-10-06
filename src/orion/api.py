@@ -12,6 +12,14 @@ from orion.explain import explain_choice
 from orion.mcp import mcp_router
 from orion.optimize import get_best_rail, score_rails, validate_context
 
+# Import ML-enhanced optimizer
+try:
+    from orion.ml_enhanced_optimizer import get_ml_enhanced_optimizer
+    ML_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ ML models not available: {e}")
+    ML_AVAILABLE = False
+
 # Create FastAPI application
 app = FastAPI(
     title="Orion Service",
@@ -49,7 +57,54 @@ async def health_check() -> dict[str, Any]:
     Returns:
         dict: Health status information
     """
-    return {"ok": True, "repo": "orion"}
+    return {
+        "ok": True, 
+        "repo": "orion",
+        "ml_enabled": ML_AVAILABLE
+    }
+
+
+@app.get("/ml/status")
+async def get_ml_status() -> dict[str, Any]:
+    """Get ML model status and configuration."""
+    if not ML_AVAILABLE:
+        return {
+            "ml_enabled": False,
+            "error": "ML models not available"
+        }
+    
+    try:
+        from orion.ml.route_optimization import get_route_optimizer
+        from orion.ml.cost_prediction import get_cost_predictor
+        
+        route_optimizer = get_route_optimizer()
+        cost_predictor = get_cost_predictor()
+        
+        return {
+            "ml_enabled": True,
+            "ml_weight": 0.7,  # From MLEnhancedOptimizer
+            "models": {
+                "route_optimization": {
+                    "loaded": route_optimizer.is_loaded,
+                    "model_type": route_optimizer.metadata.get("model_type", "unknown"),
+                    "version": route_optimizer.metadata.get("version", "unknown"),
+                    "training_date": route_optimizer.metadata.get("trained_on", "unknown"),
+                    "features": len(route_optimizer.feature_names) if route_optimizer.feature_names else 0
+                },
+                "cost_prediction": {
+                    "loaded": cost_predictor.is_loaded,
+                    "model_type": cost_predictor.metadata.get("model_type", "unknown"),
+                    "version": cost_predictor.metadata.get("version", "unknown"),
+                    "training_date": cost_predictor.metadata.get("trained_on", "unknown"),
+                    "features": len(cost_predictor.feature_names) if cost_predictor.feature_names else 0
+                }
+            }
+        }
+    except Exception as e:
+        return {
+            "ml_enabled": False,
+            "error": f"Failed to get ML status: {str(e)}"
+        }
 
 
 @app.post("/optimize")
@@ -67,42 +122,47 @@ async def optimize_payout(
     Returns:
         Optimization result with best rail, rankings, and explanation
     """
-    # Validate and normalize context
-    context = validate_context(request.model_dump())
+    # Use ML-enhanced optimizer if available, otherwise fallback to traditional
+    if ML_AVAILABLE:
+        ml_optimizer = get_ml_enhanced_optimizer()
+        response = ml_optimizer.optimize_payout(request.model_dump())
+    else:
+        # Traditional optimization logic
+        context = validate_context(request.model_dump())
 
-    # Score and rank rails
-    ranked_rails = score_rails(context)
+        # Score and rank rails
+        ranked_rails = score_rails(context)
 
-    if not ranked_rails:
-        return {
-            "error": "No suitable payment rails available for this amount",
+        if not ranked_rails:
+            return {
+                "error": "No suitable payment rails available for this amount",
+                "context": context,
+            }
+
+        # Get best rail
+        best_rail = get_best_rail(ranked_rails)
+
+        if not best_rail:
+            return {
+                "error": "No suitable payment rails available for this amount",
+                "context": context,
+            }
+
+        # Generate explanation
+        explanation = explain_choice(best_rail, ranked_rails, context)
+
+        # Prepare response
+        response = {
+            "best": best_rail,
+            "ranked": ranked_rails,
+            "explanation": explanation,
             "context": context,
         }
-
-    # Get best rail
-    best_rail = get_best_rail(ranked_rails)
-
-    if not best_rail:
-        return {
-            "error": "No suitable payment rails available for this amount",
-            "context": context,
-        }
-
-    # Generate explanation
-    explanation = explain_choice(best_rail, ranked_rails, context)
-
-    # Prepare response
-    response = {
-        "best": best_rail,
-        "ranked": ranked_rails,
-        "explanation": explanation,
-        "context": context,
-    }
 
     # Emit CloudEvent if requested
     if emit_ce:
         trace_id = get_trace_id()
-        payload = create_explanation_payload(best_rail, explanation, context)
+        payload = create_explanation_payload(response["best"], response["explanation"], response["context"])
         ce_event = emit_explanation_ce(trace_id, payload)
 
         # Add CloudEvent to response
@@ -118,8 +178,8 @@ def main() -> None:
 
     uvicorn.run(
         "orion.api:app",
-        host="127.0.0.1",  # Use localhost for development security
-        port=8000,
+        host="0.0.0.0",  # Use 0.0.0.0 for Docker container access
+        port=8081,
         reload=True,
         log_level="info",
     )
